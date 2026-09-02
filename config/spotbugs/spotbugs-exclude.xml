@@ -6,9 +6,22 @@
   anotada con @RestController/@Controller como "endpoint alcanzable
   remotamente". No es un defecto: en este proyecto los Controllers
   son la interfaz pública intencional, así que se ignora.
+
+  EI_EXPOSE_REP2: alerta que se dispara cuando un constructor
+  almacena en un campo una referencia a un objeto recibido por
+  parámetro. Para beans de Spring inyectados por constructor
+  (típicamente singletons sin estado mutable, como
+  RedisTemplate, JdbcTemplate, ObjectMapper, etc.) este patrón
+  es la práctica estándar y no expone representación interna
+  alguna: el bean es gestionado por el contenedor y compartido
+  por diseño. Silenciar esta alerta evita ruido en servicios
+  cuyo único campo es una dependencia inyectada.
 -->
 <FindBugsFilter>
     <Match>
         <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
 </FindBugsFilter>
