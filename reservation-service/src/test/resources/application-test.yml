@@ -9,7 +9,3 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration

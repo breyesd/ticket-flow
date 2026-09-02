@@ -21,6 +21,13 @@ import org.testcontainers.utility.DockerImageName;
  * {@code test} con H2 embebido; esta base queda reservada para
  * futuras tareas (F1.T3 en adelante) que necesiten características
  * específicas de Postgres.</p>
+ *
+ * <p>Las subclases concretas deben añadir además
+ * {@code @ExtendWith(EmbeddedRedisExtension.class)} para que el
+ * contexto de Spring pueda construir el
+ * {@code RedisTemplate<String,Object>} declarado por
+ * {@code RedisConfig} (el perfil {@code test} ya no excluye
+ * {@code RedisAutoConfiguration}).</p>
  */
 @Testcontainers
 @SpringBootTest

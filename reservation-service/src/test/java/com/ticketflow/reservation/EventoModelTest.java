@@ -6,9 +6,11 @@ import com.ticketflow.reservation.domain.evento.Asiento;
 import com.ticketflow.reservation.domain.evento.AsientoEstado;
 import com.ticketflow.reservation.domain.evento.Evento;
 import com.ticketflow.reservation.domain.evento.Funcion;
+import com.ticketflow.reservation.support.EmbeddedRedisExtension;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +24,12 @@ import org.springframework.transaction.annotation.Transactional;
  * Flyway con la migración V1 aplicada) y comprueba que Hibernate,
  * configurado con {@code ddl-auto=validate}, reconoce el esquema sin
  * discrepancias.</p>
+ *
+ * <p>Usa {@link EmbeddedRedisExtension} para disponer de un Redis
+ * embebido durante la carga del contexto (necesario porque el perfil
+ * {@code test} ya no excluye {@code RedisAutoConfiguration}).</p>
  */
+@ExtendWith(EmbeddedRedisExtension.class)
 @ActiveProfiles("test")
 @SpringBootTest
 class EventoModelTest {

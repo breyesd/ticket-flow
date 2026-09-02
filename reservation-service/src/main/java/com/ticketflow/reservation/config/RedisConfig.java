@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
@@ -38,9 +37,17 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
  * {@code java.util}/{@code java.lang}, mitigando riesgos de
  * deserialización insegura (ver AGENTS.md §6 — controles de seguridad
  * con SpotBugs + Find Security Bugs).</p>
+ *
+ * <p>El bean se registra siempre que haya una
+ * {@link RedisConnectionFactory} disponible. Spring Boot la
+ * autoconfigura a partir de {@code spring.data.redis.host}/
+ * {@code spring.data.redis.port} cuando {@code RedisAutoConfiguration}
+ * no está excluida; los tests del módulo usan el perfil
+ * {@code test} con un Redis embebido arrancado por
+ * {@code EmbeddedRedisExtension}, de modo que el bean está disponible
+ * para F2.T2 y siguientes sin necesidad de un perfil dedicado.</p>
  */
 @Configuration
-@Profile("!test")
 public class RedisConfig {
 
     /**

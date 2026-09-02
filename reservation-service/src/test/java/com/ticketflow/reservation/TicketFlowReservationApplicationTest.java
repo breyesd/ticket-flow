@@ -1,18 +1,22 @@
 package com.ticketflow.reservation;
 
+import com.ticketflow.reservation.support.EmbeddedRedisExtension;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 /**
  * Smoke test de carga del contexto de Spring del servicio
  * {@code reservation-service} usando el perfil {@code test} (H2
- * embebido + Flyway + Redis autoconfigure excluido).
+ * embebido + Flyway + Redis embebido vía
+ * {@link EmbeddedRedisExtension}).
  *
  * <p>Es la verificación mínima de que todas las dependencias del
  * módulo están correctamente cableadas y de que la configuración por
  * defecto es coherente.</p>
  */
+@ExtendWith(EmbeddedRedisExtension.class)
 @ActiveProfiles("test")
 @SpringBootTest
 class TicketFlowReservationApplicationTest {

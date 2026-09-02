@@ -2,19 +2,13 @@ package com.ticketflow.reservation.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.net.ServerSocket;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import com.ticketflow.reservation.support.EmbeddedRedisExtension;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import redis.embedded.RedisServer;
 
 /**
  * Test de integración del bean {@link RedisConfig#redisTemplate} que
@@ -25,35 +19,40 @@ import redis.embedded.RedisServer;
  *
  * <p>Como el entorno no tiene Docker, este test arranca un servidor
  * Redis embebido (vía la dependencia
- * {@code com.github.codemonstur:embedded-redis}) y lo expone a Spring
- * mediante {@link DynamicPropertySource}. El test escribe una clave
- * {@code "test:config"} con un POJO simple (record con un único
- * campo) y afirma que la lectura devuelve un valor equivalente tipado
- * a su clase original — comportamiento que solo es posible si el
- * serializador JSON está activo y la deserialización polimórfica
+ * {@code com.github.codemonstur:embedded-redis}) mediante
+ * {@link EmbeddedRedisExtension}, que publica
+ * {@code spring.data.redis.host}/{@code spring.data.redis.port} en las
+ * propiedades del sistema antes de cargar el contexto. El test escribe
+ * una clave {@code "test:config"} con un POJO simple (record con un
+ * único campo) y afirma que la lectura devuelve un valor equivalente
+ * tipado a su clase original — comportamiento que solo es posible si
+ * el serializador JSON está activo y la deserialización polimórfica
  * funciona (es decir, {@code activateDefaultTyping} está
  * activado).</p>
  *
- * <p>Usa un perfil dedicado {@code redis-test} (en lugar del
- * {@code test} general) para no contaminar el resto de tests con la
- * necesidad de un Redis embebido: el perfil {@code test} excluye
- * deliberadamente {@code RedisAutoConfiguration} (ver
- * {@code application-test.yml}).</p>
+ * <p>Usa el perfil estándar {@code test} (sin perfil dedicado): la
+ * extensión provee el Redis embebido y el contexto se carga con la
+ * configuración de producción más el wiring específico de tests, lo
+ * que permite que {@link RedisConfig} no necesite filtros por
+ * perfil.</p>
  */
-@ActiveProfiles("redis-test")
+@ExtendWith(EmbeddedRedisExtension.class)
+@ActiveProfiles("test")
 @SpringBootTest
 class RedisConfigTest {
 
     /**
      * POJO de prueba usado por
-     * {@link #writesAndReadsTypedJsonValue}. Es un
-     * {@link Serializable} para que Jackson pueda manejarlo sin
-     * configuración adicional y se incluye el
-     * {@code serialVersionUID} como buena práctica de serialización.
+     * {@link #writesAndReadsTypedJsonValue}. Es un record mínimo
+     * deliberadamente {@code final} (todos los records lo son) para
+     * forzar al serializador JSON a verificar que el tipado
+     * polimórfico funciona con clases finales — escenario cubierto por
+     * {@code DefaultTyping.EVERYTHING} en {@link RedisConfig}. No
+     * implementa {@link java.io.Serializable} porque el serializador
+     * usado es Jackson (JSON), que no requiere esa interfaz: basta con
+     * que el tipo sea accesible al {@code ObjectMapper}.
      */
-    public record SamplePojo(String value) implements Serializable {
-
-        private static final long serialVersionUID = 1L;
+    public record SamplePojo(String value) {
     }
 
     /**
@@ -63,84 +62,6 @@ class RedisConfigTest {
      */
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
-
-    /**
-     * Servidor Redis embebido compartido por los tests de esta clase.
-     * Arranca una vez antes de todos los tests y se detiene al
-     * finalizar, reusándose entre métodos para reducir el tiempo
-     * total. Arranca en un puerto libre elegido mediante
-     * {@link #findFreePort()} (la librería no soporta {@code port 0}).
-     */
-    private static RedisServer embeddedRedis;
-
-    /**
-     * Puerto concreto en el que escucha el servidor Redis embebido.
-     * Se publica a Spring en {@link #configureRedisPort}.
-     */
-    private static int embeddedRedisPort;
-
-    /**
-     * Arranca el servidor Redis embebido en un puerto libre
-     * descubierto con {@link #findFreePort()}.
-     *
-     * @throws IOException si no se puede descubrir un puerto libre
-     *                     o si el binario de Redis no puede iniciarse
-     *                     (típicamente por permisos o por falta del
-     *                     ejecutable empaquetado para la plataforma).
-     */
-    @BeforeAll
-    static void startEmbeddedRedis() throws IOException {
-        embeddedRedisPort = findFreePort();
-        embeddedRedis = new RedisServer(embeddedRedisPort);
-        embeddedRedis.start();
-    }
-
-    /**
-     * Detiene el servidor Redis embebido liberando el puerto y los
-     * recursos asociados. Idempotente: si el servidor ya fue detenido
-     * no falla.
-     *
-     * @throws IOException si la señal de parada no puede enviarse al
-     *                     proceso Redis.
-     */
-    @AfterAll
-    static void stopEmbeddedRedis() throws IOException {
-        if (embeddedRedis != null) {
-            embeddedRedis.stop();
-            embeddedRedis = null;
-        }
-    }
-
-    /**
-     * Publica en el contexto de Spring el puerto del servidor Redis
-     * embebido arrancado en {@link #startEmbeddedRedis}, de modo que
-     * el cliente Lettuce/Jedis configurado por Spring Boot apunte al
-     * puerto dinámico elegido (evita colisiones con otros tests).
-     *
-     * @param registry registro dinámico de propiedades de Spring al
-     *                 que se añade {@code spring.data.redis.port}.
-     */
-    @DynamicPropertySource
-    static void configureRedisPort(DynamicPropertyRegistry registry) {
-        registry.add("spring.data.redis.port", () -> embeddedRedisPort);
-    }
-
-    /**
-     * Pide al sistema operativo un puerto TCP libre, lo cierra y lo
-     * devuelve. Existe una pequeña ventana de carrera entre el cierre
-     * y el bind del servidor Redis, pero es aceptable en tests
-     * (los reintentos naturales del SO la cubren) y evita fijar un
-     * puerto que choque con otros procesos.
-     *
-     * @return un puerto TCP libre en el momento de la invocación.
-     * @throws IOException si no se puede abrir un socket para
-     *                     preguntar al SO.
-     */
-    private static int findFreePort() throws IOException {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        }
-    }
 
     /**
      * Verifica el criterio de aceptación del plan F2.T1: el

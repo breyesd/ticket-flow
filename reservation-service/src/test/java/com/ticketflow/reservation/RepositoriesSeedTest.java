@@ -9,9 +9,11 @@ import com.ticketflow.reservation.domain.evento.Evento;
 import com.ticketflow.reservation.domain.evento.EventoRepository;
 import com.ticketflow.reservation.domain.evento.Funcion;
 import com.ticketflow.reservation.domain.evento.FuncionRepository;
+import com.ticketflow.reservation.support.EmbeddedRedisExtension;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -33,7 +35,12 @@ import org.springframework.test.context.ActiveProfiles;
  * migraciones; las verificaciones específicas de Postgres (p. ej.
  * {@code SELECT ... FOR UPDATE}) se abordarán en fases posteriores
  * con la base real.</p>
+ *
+ * <p>Usa {@link EmbeddedRedisExtension} para disponer de un Redis
+ * embebido durante la carga del contexto (necesario porque el perfil
+ * {@code test} ya no excluye {@code RedisAutoConfiguration}).</p>
  */
+@ExtendWith(EmbeddedRedisExtension.class)
 @ActiveProfiles("test")
 @SpringBootTest
 class RepositoriesSeedTest {

@@ -6,7 +6,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.ticketflow.reservation.support.EmbeddedRedisExtension;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,7 +24,12 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>Arranca contra el perfil {@code test} (H2 + Flyway con V1+V2
  * aplicadas), de modo que el seed con 1 evento, 1 función y 100
  * asientos en estado {@code DISPONIBLE} ya está disponible.</p>
+ *
+ * <p>Usa {@link EmbeddedRedisExtension} para disponer de un Redis
+ * embebido durante la carga del contexto (necesario porque el perfil
+ * {@code test} ya no excluye {@code RedisAutoConfiguration}).</p>
  */
+@ExtendWith(EmbeddedRedisExtension.class)
 @ActiveProfiles("test")
 @SpringBootTest
 @AutoConfigureMockMvc
