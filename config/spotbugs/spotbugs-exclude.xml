@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Filtros de SpotBugs para el proyecto TicketFlow.
+
+  SPRING_ENDPOINT: alerta informativa que marca cualquier clase
+  anotada con @RestController/@Controller como "endpoint alcanzable
+  remotamente". No es un defecto: en este proyecto los Controllers
+  son la interfaz pública intencional, así que se ignora.
+-->
+<FindBugsFilter>
+    <Match>
+        <Bug pattern="SPRING_ENDPOINT"/>
+    </Match>
+</FindBugsFilter>

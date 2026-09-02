@@ -78,6 +78,11 @@
                             <version>1.12.0</version>
                         </plugin>
                     </plugins>
+                    <!-- SPRING_ENDPOINT solo marca que una clase es un
+                         endpoint Spring alcanzable remotamente; no es
+                         un defecto, es informativo y se ignora en
+                         este proyecto. -->
+                    <excludeFilterFile>${maven.multiModuleProjectDirectory}/config/spotbugs/spotbugs-exclude.xml</excludeFilterFile>
                 </configuration>
                 <executions>
                     <execution>

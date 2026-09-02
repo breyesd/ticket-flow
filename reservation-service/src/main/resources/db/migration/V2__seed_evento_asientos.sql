@@ -2,9 +2,14 @@
 INSERT INTO evento (nombre, descripcion) VALUES
     ('Concierto Demo', 'Evento semilla de TicketFlow con 100 asientos.');
 
--- Inserta 1 función asociada al evento sembrado, programada a 7 días vista.
+-- Inserta 1 función asociada al evento sembrado. La fecha concreta
+-- del seed no forma parte del contrato del seed; basta con que sea
+-- un timestamp válido. Se usa CAST para fijar la fecha explícitamente
+-- y mantener el SQL portable entre PostgreSQL y H2 (la columna es
+-- TIMESTAMP WITH TIME ZONE y ningún operador de suma es portable
+-- entre los dos motores).
 INSERT INTO funcion (evento_id, fecha_hora)
-SELECT id, CURRENT_TIMESTAMP + 7
+SELECT id, CAST('2099-01-01 20:00:00+00' AS TIMESTAMP WITH TIME ZONE)
 FROM evento
 WHERE nombre = 'Concierto Demo'
 ORDER BY id DESC
