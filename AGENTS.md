@@ -37,6 +37,11 @@ TicketFlow es una plataforma backend distribuida de reservas y venta de entradas
 - **Manejo de Errores:** Centralizar excepciones de dominio mediante `@RestControllerAdvice` retornando respuestas consistentes bajo el estándar RFC 7807 (*Problem Details*).
 - **Control de Transacciones:** Métodos de persistencia anotados estrictamente con `@Transactional` (especificar `readOnly = true` en consultas).
 - **Atomicidad en Redis:** Utilizar scripts Lua o comandos atómicos (`SET key value NX PX milliseconds`) para evitar condiciones de carrera al bloquear/liberar recursos.
+- **Documentación obligatoria:** todo código generado por el agente debe ir documentado. Esto incluye, como mínimo:
+  - Javadoc en clases, interfaces, enums y métodos públicos o protegidos de producción (no se exige en getters triviales ni en tests).
+  - Comentarios en líneas o bloques que contengan lógica no evidente: decisiones de diseño, condiciones de carrera evitadas, *workarounds* justificados, o referencias a la spec/sección correspondiente.
+  - El Javadoc de clases debe indicar el rol de la clase en el dominio cuando aplique, y referenciar la sección de la spec activa cuando el comportamiento venga fijado por ella (p. ej. "spec 0001, sección 3.1").
+  - Idioma: español (alineado con constitución §8). Los identificadores y nombres técnicos siguen en inglés.
 
 ---
 
