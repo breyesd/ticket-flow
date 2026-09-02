@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: reservation-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/ticketflow}
+    username: ${DB_USER:ticketflow}
+    password: ${DB_PASSWORD:ticketflow}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+server:
+  port: 8080
