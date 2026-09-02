@@ -48,31 +48,77 @@ public class Asiento {
     @Column(name = "created_at", nullable = false, updatable = false, insertable = false)
     private OffsetDateTime createdAt;
 
+    /**
+     * Constructor protegido requerido por JPA (instanciación por
+     * reflexión al cargar desde base de datos; no debe usarse desde
+     * código de aplicación).
+     */
     protected Asiento() {
     }
 
+    /**
+     * Crea un nuevo asiento ligado a una función existente y listo para
+     * persistir. El estado se inicializa a
+     * {@link AsientoEstado#DISPONIBLE} como semántica de creación (ver
+     * spec 0001, sección 2.4): un asiento recién dado de alta siempre
+     * está libre.
+     *
+     * @param funcion función a la que pertenece este asiento; no puede
+     *                ser {@code null} y debe estar persistida (o
+     *                persistirse en la misma transacción) por la
+     *                restricción de FK {@code fk_asiento_funcion}.
+     * @param numero  número del asiento dentro de la función; debe ser
+     *                único por función (restricción
+     *                {@code uk_asiento_funcion_numero} en V1).
+     */
     public Asiento(Funcion funcion, Integer numero) {
         this.funcion = funcion;
         this.numero = numero;
         this.estado = AsientoEstado.DISPONIBLE;
     }
 
+    /**
+     * @return identificador surrogate generado por la base de datos
+     *         (clave primaria). Será {@code null} hasta que la entidad
+     *         haya sido persistida.
+     */
     public Long getId() {
         return id;
     }
 
+    /**
+     * @return función a la que pertenece este asiento. El acceso se
+     *         delega al proxy lazy de JPA: la consulta a la base de
+     *         datos se difiere hasta que se accede a algún atributo de
+     *         la función.
+     */
     public Funcion getFuncion() {
         return funcion;
     }
 
+    /**
+     * @return número del asiento dentro de la función; único por
+     *         función.
+     */
     public Integer getNumero() {
         return numero;
     }
 
+    /**
+     * @return estado actual del asiento en la base de datos. El
+     *         bloqueo durante la selección <strong>no</strong> se
+     *         persiste: solo viven en Redis como claves con TTL (ver
+     *         spec 0001, sección 3.1).
+     */
     public AsientoEstado getEstado() {
         return estado;
     }
 
+    /**
+     * @return marca temporal de creación del registro tal y como la
+     *         asigna la base de datos por defecto de la columna
+     *         {@code created_at}.
+     */
     public OffsetDateTime getCreatedAt() {
         return createdAt;
     }

@@ -13,13 +13,39 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Test de integración de la jerarquía JPA
+ * {@code Evento (1) ─< Funcion (n) ─< Asiento (n)} y del default
+ * {@link AsientoEstado#DISPONIBLE} al crear un {@link Asiento}.
+ *
+ * <p>Arranca contra el perfil {@code test} (H2 en modo PostgreSQL +
+ * Flyway con la migración V1 aplicada) y comprueba que Hibernate,
+ * configurado con {@code ddl-auto=validate}, reconoce el esquema sin
+ * discrepancias.</p>
+ */
 @ActiveProfiles("test")
 @SpringBootTest
 class EventoModelTest {
 
+    /**
+     * EntityManager inyectado por Spring a partir del
+     * {@code EntityManagerFactory} configurado por JPA. Se usa para
+     * persistir manualmente las entidades y forzar el flush antes de
+     * las aserciones.
+     */
     @PersistenceContext
     private EntityManager entityManager;
 
+    /**
+     * Persiste una jerarquía completa (evento → función → asiento) en
+     * una sola transacción y verifica:
+     * <ul>
+     *   <li>que el asiento recibe un id surrogate al persistir,</li>
+     *   <li>que su estado inicial es {@link AsientoEstado#DISPONIBLE},</li>
+     *   <li>que las relaciones ManyToOne asiento→función y
+     *       función→evento quedan correctamente materializadas.</li>
+     * </ul>
+     */
     @Test
     @Transactional
     void eventoFuncionAsientoHierarchyIsPersisted() {

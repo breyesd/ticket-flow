@@ -37,10 +37,13 @@ TicketFlow es una plataforma backend distribuida de reservas y venta de entradas
 - **Manejo de Errores:** Centralizar excepciones de dominio mediante `@RestControllerAdvice` retornando respuestas consistentes bajo el estándar RFC 7807 (*Problem Details*).
 - **Control de Transacciones:** Métodos de persistencia anotados estrictamente con `@Transactional` (especificar `readOnly = true` en consultas).
 - **Atomicidad en Redis:** Utilizar scripts Lua o comandos atómicos (`SET key value NX PX milliseconds`) para evitar condiciones de carrera al bloquear/liberar recursos.
-- **Documentación obligatoria:** todo código generado por el agente debe ir documentado. Esto incluye, como mínimo:
-  - Javadoc en clases, interfaces, enums y métodos públicos o protegidos de producción (no se exige en getters triviales ni en tests).
-  - Comentarios en líneas o bloques que contengan lógica no evidente: decisiones de diseño, condiciones de carrera evitadas, *workarounds* justificados, o referencias a la spec/sección correspondiente.
-  - El Javadoc de clases debe indicar el rol de la clase en el dominio cuando aplique, y referenciar la sección de la spec activa cuando el comportamiento venga fijado por ella (p. ej. "spec 0001, sección 3.1").
+- **Documentación obligatoria (Javadoc exhaustivo):** todo código generado, modificado o refactorizado por el agente debe ir documentado con Javadoc sin excepciones. Requisitos estrictos:
+  - Documentar **toda clase, interfaz, enum, método público y método protegido** de producción **y de tests** (incluye getters, setters, constructores, `main`, campos públicos/estáticos y métodos `@Test`).
+  - Cada bloque Javadoc debe incluir una descripción clara y concisa del propósito del elemento.
+  - Etiquetas obligatorias cuando apliquen: `@param` con descripción extendida para cada parámetro, `@return` con descripción extendida del valor devuelto, `@throws` con la condición que origina la excepción.
+  - Si se modifica código existente que carece de documentación, agregarla antes de cerrar la tarea. No omitir documentación bajo ninguna circunstancia, ni siquiera para métodos cortos o autodescriptivos.
+  - Comentarios en líneas o bloques cuando contengan lógica no evidente: decisiones de diseño, condiciones de carrera evitadas, *workarounds* justificados o referencias a la spec/sección correspondiente.
+  - El Javadoc de clases debe indicar el rol de la clase en el dominio cuando aplique y referenciar la sección de la spec activa cuando el comportamiento venga fijado por ella (p. ej. "spec 0001, sección 3.1").
   - Idioma: español (alineado con constitución §8). Los identificadores y nombres técnicos siguen en inglés.
 
 ---
