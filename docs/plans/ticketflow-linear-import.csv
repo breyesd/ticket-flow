@@ -1,0 +1,24 @@
+title,description,priority,label
+F0.T1 Estructura multi-module Maven + parent POM + wrapper,"Crear repositorio Maven multi-module (common, reservation-service, notification-service) y Maven wrapper funcionando. Verificar: ./mvnw -q package compila los 3 módulos.",High,scaffold
+F0.T2 Config de calidad (checkstyle, spotbugs, dependency-check, JaCoCo),"Conectar plugins de calidad/seguridad al build y enlazarlos a verify. Verificar ./mvnw verify sin errores.",High,scaffold
+F0.T3 docker-compose (Postgres + Redis) + README de arranque,"Crear docker-compose.yml con postgres:16 y redis:7 y documentar arranque. Verificar docker compose up -d.",High,scaffold
+F1.T1 Dependencias Spring Boot de reservation-service,"Añadir starters Web/JPA/Redis/Postgres/Flyway/springdoc + Testcontainers. Clase main + application.yml base. Contexto arranca.",High,fase-1
+F1.T2 Migración Flyway V1 + entidades Evento/Funcion/Asiento,"Migración de tablas evento/funcion/asiento con FK jerárquicas y entidades JPA con enum AsientoEstado.",High,fase-1
+F1.T3 Repositorios JPA + seed (1 evento, 100 asientos),"Repositorios Spring Data y migración V2 de seed. Test Testcontainers: 1 evento y 100 asientos.",High,fase-1
+F1.T4 Endpoint GET de disponibilidad,"GET /api/v1/eventos/{id}/funciones/{id}/asientos con 404 RFC7807 y DTO record. Test integración.",High,fase-1
+F2.T1 Config RedisTemplate con serializadores JSON,"RedisTemplate tipado con JSON, properties de conexión. Test integración Redis Testcontainers.",High,fase-2
+F2.T2 SeatLockService (acquireLock/releaseLock atómicos),"Clave lock:funcion:{id}:asiento:{id}, SET NX PX, liberación por propietario con Lua. Tests de exclusión mutua.",High,fase-2
+F2.T3 Endpoint POST /reservas/bloquear,"Bloqueo de asiento, devuelve reservationId efímero. 409 si ya bloqueado, 404 si no existe. TTL 5 min.",High,fase-2
+F2.T4 Endpoint POST /reservas/liberar,"Liberación manual del lock verificando propietario. Idempotente.",High,fase-2
+F2.T5 Test de concurrencia (20 hilos, mismo asiento),"20 hilos simultáneos sobre el mismo asiento: exactamente 1 adquiere el lock. Testcontainers.",High,fase-2
+F3.T1 Entidad y repositorio Reserva + migración V3,"Tabla reserva (usuarioId, asientoId, monto, estado, fechaCreacion), enum ReservaEstado PAGADA/FALLIDA, unicidad.",High,fase-3
+F3.T2 Bloqueo pesimista en AsientoRepository,"findByIdForUpdate con @Lock(PESSIMISTIC_WRITE) / SELECT FOR UPDATE.",High,fase-3
+F3.T3 PaymentGatewayMock,"Éxito por defecto + switch configurable de fallo (property).",High,fase-3
+F3.T4 Endpoint POST /reservas/confirmar,"Transacción completa: FOR UPDATE, cobro, asiento VENDIDO, Reserva PAGADA, liberar lock. 409/422.",High,fase-3
+F3.T5 Rollback y manejo de fallos de pago,"Fallo -> Reserva FALLIDA + asiento DISPONIBLE + lock liberado + 422. Test integración.",High,fase-3
+F4.T1 ReservaConfirmadaEvent en common,"Record compartido con campos de notificación y constante TICKETS_ORDERS_TOPIC.",High,fase-4
+F4.T2 Kafka en docker-compose + config spring-kafka,"Servicio Kafka en compose, productor/consumidor con serializador JSON y group-id.",High,fase-4
+F4.T3 Publicar evento en tickets.orders,"EventPublisher interface + Kafka impl, invocado post-confirmación exitosa.",High,fase-4
+F4.T4 Listener en notification-service,"@KafkaListener tickets.orders + NotificacionService que simula envío.",High,fase-4
+F4.T5 Test end-to-end Kafka con Testcontainers,"Flujo bloquear→confirmar→evento→consumido→envío simulado.",High,fase-4
+F4.T6 Dockerfile multi-stage + doc despliegue AWS,"Dockerfile Temurin/Distroless por servicio y guía ECR/ECS/App Runner.",Medium,fase-4
