@@ -1,6 +1,7 @@
 package com.ticketflow.reservation.api.error;
 
 import com.ticketflow.reservation.domain.evento.AsientoBloqueadoException;
+import com.ticketflow.reservation.domain.evento.AsientoNoPropietarioException;
 import com.ticketflow.reservation.domain.evento.AsientoVendidoException;
 import com.ticketflow.reservation.domain.evento.EventoNotFoundException;
 import com.ticketflow.reservation.domain.evento.FuncionNotFoundException;
@@ -86,6 +87,25 @@ public class ApiExceptionHandler {
      */
     @ExceptionHandler(AsientoBloqueadoException.class)
     public ResponseEntity<ProblemDetail> handleAsientoBloqueado(AsientoBloqueadoException ex) {
+        ProblemDetail body = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        body.setTitle("Conflict");
+        body.setType(URI.create("https://ticketflow.dev/errors/conflict"));
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(body);
+    }
+
+    /**
+     * Mapea {@link AsientoNoPropietarioException} a una respuesta HTTP 409
+     * Conflict con cuerpo Problem Details.
+     *
+     * @param ex excepción lanzada cuando se intenta liberar un lock que
+     *           pertenece a otro propietario.
+     * @return respuesta 409 con cuerpo RFC 7807.
+     */
+    @ExceptionHandler(AsientoNoPropietarioException.class)
+    public ResponseEntity<ProblemDetail> handleAsientoNoPropietario(
+            AsientoNoPropietarioException ex) {
         ProblemDetail body = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
         body.setTitle("Conflict");
         body.setType(URI.create("https://ticketflow.dev/errors/conflict"));
