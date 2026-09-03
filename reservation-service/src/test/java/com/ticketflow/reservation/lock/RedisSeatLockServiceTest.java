@@ -271,6 +271,6 @@ class RedisSeatLockServiceTest {
      * @param asientoId identificador de asiento de la clave a borrar.
      */
     private void limpiar(Long funcionId, Long asientoId) {
-        redisTemplate.delete("lock:funcion:" + funcionId + ":asiento:" + asientoId);
+        redisTemplate.delete(RedisSeatLockService.keyFor(funcionId, asientoId));
     }
 }

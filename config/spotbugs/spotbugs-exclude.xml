@@ -7,21 +7,22 @@
   remotamente". No es un defecto: en este proyecto los Controllers
   son la interfaz pública intencional, así que se ignora.
 
-  EI_EXPOSE_REP2: alerta que se dispara cuando un constructor
-  almacena en un campo una referencia a un objeto recibido por
-  parámetro. Para beans de Spring inyectados por constructor
-  (típicamente singletons sin estado mutable, como
-  RedisTemplate, JdbcTemplate, ObjectMapper, etc.) este patrón
-  es la práctica estándar y no expone representación interna
-  alguna: el bean es gestionado por el contenedor y compartido
-  por diseño. Silenciar esta alerta evita ruido en servicios
-  cuyo único campo es una dependencia inyectada.
+  EI_EXPOSE_REP2 (scope RedisSeatLockService): alerta que se dispara
+  cuando un constructor almacena en un campo una referencia a un
+  objeto recibido por parámetro. Para el caso concreto del
+  RedisTemplate inyectado en RedisSeatLockService es un falso
+  positivo: Spring garantiza que el bean es un singleton seguro para
+  hilos, por lo que almacenar la referencia no expone representación
+  interna mutable. El filtro se limita a esta clase (no al proyecto
+  entero) para no silenciar defectos reales que puedan aparecer en
+  otros servicios que reciban tipos verdaderamente mutables.
 -->
 <FindBugsFilter>
     <Match>
         <Bug pattern="SPRING_ENDPOINT"/>
     </Match>
     <Match>
+        <Class name="com.ticketflow.reservation.lock.RedisSeatLockService"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
 </FindBugsFilter>

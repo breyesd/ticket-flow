@@ -110,7 +110,7 @@ public class RedisSeatLockService implements SeatLockService {
      */
     @Override
     public AcquireResult acquireLock(Long funcionId, Long asientoId, long ttlMs) {
-        String key = key(funcionId, asientoId);
+        String key = keyFor(funcionId, asientoId);
         String token = UUID.randomUUID().toString();
         Boolean ok = redisTemplate.opsForValue()
                 .setIfAbsent(key, token, Duration.ofMillis(ttlMs));
@@ -143,7 +143,7 @@ public class RedisSeatLockService implements SeatLockService {
         if (token == null || token.isBlank()) {
             return false;
         }
-        String key = key(funcionId, asientoId);
+        String key = keyFor(funcionId, asientoId);
         Long result = redisTemplate.execute(RELEASE_SCRIPT, List.of(key), token);
         return result != null && result == 1L;
     }
@@ -153,12 +153,19 @@ public class RedisSeatLockService implements SeatLockService {
      */
     @Override
     public boolean isLocked(Long funcionId, Long asientoId) {
-        return Boolean.TRUE.equals(redisTemplate.hasKey(key(funcionId, asientoId)));
+        return Boolean.TRUE.equals(redisTemplate.hasKey(keyFor(funcionId, asientoId)));
     }
 
     /**
      * Construye la clave Redis que representa el lock del asiento
      * {@code asientoId} dentro de la función {@code funcionId}.
+     *
+     * <p>Es de paquete (no privada) para que los tests de
+     * integración puedan utilizarla como fuente única de verdad del
+     * formato de clave; así, un cambio futuro en el esquema (p. ej.
+     * un hash tag para Redis Cluster) se aplica en un solo lugar y
+     * los helpers de limpieza en los tests lo reflejan
+     * automáticamente.</p>
      *
      * @param funcionId identificador de la función; se incorpora tal
      *                  cual al sufijo de la clave.
@@ -167,7 +174,7 @@ public class RedisSeatLockService implements SeatLockService {
      * @return clave completa del lock, con el formato definido por la
      *         spec 0001 §3.1.
      */
-    private String key(Long funcionId, Long asientoId) {
+    static String keyFor(Long funcionId, Long asientoId) {
         return KEY_PREFIX + funcionId + KEY_SUFFIX + asientoId;
     }
 }
