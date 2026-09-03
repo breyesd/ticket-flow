@@ -124,6 +124,39 @@ ticket-flow/
 - Docker y Docker Compose (para la infraestructura local y los tests con
   Testcontainers).
 
+### Nota: Testcontainers con Docker Desktop (Linux/macOS)
+
+Los tests de integración de las Fases 2 y 3 usan **Testcontainers** para
+levantar un PostgreSQL 16 real. Si usas **Docker Desktop**, el socket que
+Testcontainers necesita no es `docker.sock` sino el socket "raw" del motor,
+y además el contenedor de limpieza `ryuk` no puede arrancar sobre él. Para
+que `./mvnw test` funcione en una instalación de Docker Desktop ajena, hay
+que configurar dos cosas fuera del repositorio:
+
+1. Apuntar Testcontainers al socket raw del motor creando (o editando)
+   `~/.testcontainers.properties`:
+
+   ```properties
+   docker.host=unix\:///home/TU_USUARIO/.docker/desktop/docker.raw.sock
+   ```
+
+   > El path exacto puede variar entre versiones de Docker Desktop. Puedes
+   > descubrirlo con `ls ~/.docker/desktop/*.sock` y verificarlo con
+   > `curl --unix-socket <path> http://localhost/info` (debe devolver un
+   > JSON con `ContainersRunning` y `Images` poblados).
+
+2. Desactivar `ryuk` (el reaper de Testcontainers) al ejecutar los tests,
+   porque no puede montarse sobre el socket raw:
+
+   ```bash
+   TESTCONTAINERS_RYUK_DISABLED=true ./mvnw test
+   ```
+
+Si en vez de Docker Desktop usas un `dockerd` nativo (socket
+`/var/run/docker.sock` accesible y con API ≥ 1.40), no hace falta ninguno de
+estos ajustes. En ese caso Testcontainers funciona con la configuración por
+defecto.
+
 ## Puesta en marcha
 
 1. Levantar la infraestructura local:
