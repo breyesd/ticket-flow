@@ -114,15 +114,15 @@ No incluye lógica de negocio.
 (`./mvnw`) funcionando.
 
 **Pasos:**
-- [ ] Crear `pom.xml` padre (packaging `pom`) con `dependencyManagement`
+- [X] Crear `pom.xml` padre (packaging `pom`) con `dependencyManagement`
       para Spring Boot 3.2+ (import BOM), el `spring-boot-maven-plugin`, y
       los módulos `common`, `reservation-service`, `notification-service`.
-- [ ] Crear `pom.xml` de `common` (jar de librería, sin app main).
-- [ ] Crear `pom.xml` de `reservation-service` y `notification-service`
+- [X] Crear `pom.xml` de `common` (jar de librería, sin app main).
+- [X] Crear `pom.xml` de `reservation-service` y `notification-service`
       (dependientes de `common` y del starter de Spring Boot).
-- [ ] Generar el Maven wrapper (`mvn wrapper:wrapper`) para fijar
+- [X] Generar el Maven wrapper (`mvn wrapper:wrapper`) para fijar
       `./mvnw`.
-- [ ] Verificar: `./mvnw -q package` compila los 3 módulos sin errores.
+- [X] Verificar: `./mvnw -q package` compila los 3 módulos sin errores.
 
 **Criterios de aceptación:** el build multi-module funciona desde la raíz
 y produce los 3 artefactos.
@@ -133,13 +133,13 @@ y produce los 3 artefactos.
 build.
 
 **Pasos:**
-- [ ] Añadir plugin de Checkstyle con ruleset propio en
+- [X] Añadir plugin de Checkstyle con ruleset propio en
       `config/checkstyle/checkstyle.xml`.
-- [ ] Añadir plugins de SpotBugs (+ findsecbugs) y OWASP
+- [X] Añadir plugins de SpotBugs (+ findsecbugs) y OWASP
       dependency-check.
-- [ ] Añadir plugin JaCoCo (sin umbral que falle el build).
-- [ ] Enlazar todos a la fase `verify`.
-- [ ] Verificar: `./mvnw verify` ejecuta checkstyle, spotbugs y
+- [X] Añadir plugin JaCoCo (sin umbral que falle el build).
+- [X] Enlazar todos a la fase `verify`.
+- [X] Verificar: `./mvnw verify` ejecuta checkstyle, spotbugs y
       dependency-check sin errores.
 
 **Criterios de aceptación:** `./mvnw verify` pasa completo con la config de
@@ -150,11 +150,11 @@ calidad activa.
 **Objetivo:** infraestructura local levantable con un comando.
 
 **Pasos:**
-- [ ] Crear `docker-compose.yml` con `postgres:16` (credenciales y volumen)
+- [X] Crear `docker-compose.yml` con `postgres:16` (credenciales y volumen)
       y `redis:7`.
-- [ ] Documentar en README cómo levantar (`docker compose up`) y las
+- [X] Documentar en README cómo levantar (`docker compose up`) y las
       credenciales/URLs de conexión por defecto.
-- [ ] Verificar: `docker compose up -d` levanta ambos contenedores sanos.
+- [X] Verificar: `docker compose up -d` levanta ambos contenedores sanos.
 
 **Criterios de aceptación:** Postgres y Redis accesibles desde local.
 

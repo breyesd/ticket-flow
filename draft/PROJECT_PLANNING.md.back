@@ -1,0 +1,284 @@
+# TicketFlow Engine - Plan de Implementación
+
+## Configuración del Proyecto
+
+| Aspecto | Decisión |
+|---------|----------|
+| **Build Tool** | **Maven** (por encima de Gradle) |
+| **Java Version** | Java 21 (LTS) |
+| **Framework** | Spring Boot 3.2+ |
+| **Testing** | JUnit 5 + Mockito + Testcontainers |
+| **Logging** | Logback con MDC y correlación de traces |
+| **Package Structure** | `com.mx.redb.ticketflow` |
+
+## Estructura de Paquetes Final
+
+```
+src/main/java/com/mx/redb/ticketflow/
+├── TicketFlowApplication.java
+├── config/
+│   ├── LogbackConfig.java
+│   ├── JWTAuthenticationFilter.java
+│   └── KafkaConfig.java
+├── domain/
+│   ├── Evento.java
+│   ├── Funcion.java
+│   ├── Asiento.java
+│   ├── Reserva.java
+│   └── Usuario.java
+├── exception/
+│   ├── GlobalExceptionHandler.java
+│   ├── BusinessException.java
+│   └── ErrorCode.java
+├── model/
+│   ├── dto/
+│   │   ├── ReservaRequest.java
+│   │   └── ReservaResponse.java
+│   ├── records/
+│   │   └── ReservaConfirmadaEvent.java
+│   └── enum/
+│       └── EstadoAsiento.java
+├── repository/
+│   ├── EventoRepository.java
+│   ├── FuncionRepository.java
+│   ├── AsientoRepository.java
+│   └── ReservaRepository.java
+├── service/
+│   ├── EventService.java
+│   ├── SeatLockService.java
+│   ├── PaymentService.java
+│   └── ReservationService.java
+├── client/
+│   └── PaymentGatewayMock.java
+├── kafka/
+│   ├── producer/
+│   │   └── ReservationEventProducer.java
+│   └── consumer/
+│       └── ReservationEventConsumer.java
+└── util/
+    └── RedisUtil.java
+```
+
+---
+
+## Plan de Implementación General (Fases)
+
+### 🟡 FASE 1: Infraestructura Base y Configuración ✅ PENDIENTE
+
+**Tarea 1.1:** Inicializar proyecto Maven con dependencias
+- `spring-boot-starter-web`
+- `spring-boot-starter-data-jpa`
+- `spring-boot-starter-data-redis`
+- `spring-boot-starter-kafka`
+- `spring-boot-starter-security` (para JWT)
+- `lombok`
+- `flyfly-core` (Flyway)
+- `postgresql`
+- `redis-client`
+- `jackson-databind` (para serialización Redis)
+- `spring-boot-starter-logging` (Logback)
+
+**Tarea 1.2:** Configurar `pom.xml` con propiedades Java 21
+- `java.version=21`
+- `spring-boot.version=3.2.x`
+- Configuración Maven Compiler Plugin
+
+**Tarea 1.3:** Configurar Logback con MDC
+- `logback-spring.xml` con patrón estructurado
+- `MDCFilter` o `MdcSpringBootStarter`
+- Log pattern: `%d{ISO8601} [%thread] %level %mdc{X-Trace-ID} - %message%n%ex`
+
+**Tarea 1.4:** Configurar JWT Authentication
+- `JwtUtil.java` (generación/validación tokens)
+- `JwtAuthenticationFilter.java` (interceptor de requests)
+- `SecurityConfig.java` (configuración de rutas públicas/protegidas)
+
+**Tarea 1.5:** docker-compose.yml
+- PostgreSQL 16 (puerto 5432)
+- Redis 7 (puerto 6379)
+- Kafka 3.4+ (puerto 9092)
+- Variables de entorno para conexiones
+
+**Tarea 1.6:** Entidades JPA
+- `Evento`: id, nombre, fecha, creado_en
+- `Funcion`: id, evento_id, sala, creado_en
+- `Asiento`: id, funcion_id, numero, estado (DISPONIBLE/VENDIDO)
+- Mapeo Flyway migrations inicial
+
+**Tarea 1.7:** Repositorios Spring Data JPA
+- `EventoRepository` con métodos findById, findByNombre
+- `AsientoRepository` con findByFuncionIdAndEstado
+- `ReservaRepository` con findByAsientoId
+
+**Tarea 1.8:** Endpoint GET /api/v1/eventos/{id}/asientos
+- Controlador público (sin JWT requerido)
+- Retorna disponibilidad de asientos para una función
+- Mapeo a DTO/Record
+
+---
+
+### 🟢 FASE 2: Bloqueo Distribuido con Redis (Saga Begin) ✅ PENDIENTE
+
+**Tarea 2.1:** Configurar RedisTemplate
+- `StringRedisSerializer` para keys
+- `Jackson2JsonRedisSerializer` para valores
+- Configuración de conexión y TTL default
+
+**Tarea 2.2:** Crear SeatLockService
+- `acquireLock(eventoId, asientoId, ttlMs)`: usa `SET key value NX PX milliseconds` (script Lua o comando atómico)
+- `releaseLock(eventoId, asientoId)`: usa `DEL key` condicional (comparar TTL)
+- Manejo de expiración y renovación (heartbeat)
+
+**Tarea 2.3:** Endpoint POST /api/v1/reservas/bloquear
+- Recibir `{eventoId, asientoId}`
+- Validar disponibilidad (consultar repositorio)
+- Adquirir lock en Redis
+- Retornar `{lockId, ttl, mensaje}` o 409 Conflict
+
+**Tarea 2.4:** Endpoint POST /api/v1/reservas/liberar
+- Recibir `{lockId}` o `{eventoId, asientoId}`
+- Liberar lock en Redis
+- Retornar 200 OK
+
+**Tarea 2.5:** Pruebas de integración de concurrencia
+- Test con 20+ hilos simultáneos sobre el mismo asiento
+- Verificar que solo uno obtenga el lock
+- Medir tiempos de respuesta bajo carga
+
+---
+
+### 🔵 FASE 3: Persistencia ACID y Confirmación de Compra (Saga Complete) ✅ PENDIENTE
+
+**Tarea 3.1:** Entidad Reserva
+- Campos: id, usuarioId, eventoId, funcionId, asientoId, monto, estado (PENDIENTE/COMPLETADA/CANCELADA), fechaCreacion
+- Relaciones ManyToOne con Evento, Funcion, Asiento, Usuario
+
+**Tarea 3.2:** Repositorio con `@Lock(PESSIMISTIC_WRITE)`
+- Método `findByAsientoIdForUpdate()` usando `@Lock(LockModeType.PESSIMISTIC_WRITE)`
+- `SELECT ... FOR UPDATE` en la fila del asiento dentro de transacción
+
+**Tarea 3.3:** PaymentGatewayMock
+- Clase simulando procesamiento de pago
+- Método `procesarPago(monto, tarjetaInfo)` que retorna éxito/fallo configurable
+- Logger interno para rastreo
+
+**Tarea 3.4:** Endpoint POST /api/v1/reservas/confirmar (Saga Complete)
+Flujo:
+1. Recibir `{eventoId, asientoId, usuarioId, monto}`
+2. Validar lock existente en Redis (si no, error 409)
+3. `@Transactional` + `@Lock(PESSIMISTIC_WRITE)`:
+   a. Verificar estado asiento DISPONIBLE (con lock)
+   b. Cambiar estado a VENDIDO
+   c. Persistir entidad Reserva con estado PENDIENTE
+   d. Liberar lock Redis
+4. Si pago exitoso:
+   - Actualizar reserva estado a COMPLETADA
+   - Publicar `ReservaConfirmadaEvent` a Kafka topic `tickets.orders`
+   - Retornar 200 OK con reserva confirmada
+5. Si pago falla:
+   - Ejecutar compensación: liberar lock si no fue liberado
+   - Actualizar reserva estado a CANCELADA
+   - Retornar 400/422 con error de pago
+
+**Tarea 3.5:** Manejo rollback y fallos
+- `@TransactionalRollbackFor` excepciones personalizadas
+- Testear escenario: bloqueo → pago fallado → reserva cancelada → lock liberado
+
+---
+
+### 🔴 FASE 4: Mensajería Asíncrona y Despliegue ✅ PENDIENTE
+
+**Tarea 4.1:** Kafka en docker-compose.yml
+- Service Kafka (zookeeper + broker)
+- Network compartido con postgres/redis
+- Variables de entorno `KAFKA_BOOTSTRAP_SERVERS`
+
+**Tarea 4.2:** Configurar productor/consumidor Spring Boot
+- `KafkaProducerConfig.java` con Jackson serializer
+- `KafkaConsumerConfig.java` con `AUTO_OFFSET_RESET=earliest`
+- Topic `tickets.orders` con 3 partitions (strategy: round-robin por eventoId)
+
+**Tarea 4.3:** Publicar ReservaConfirmadaEvent
+- Evento con campos: reservaId, eventoId, asientoId, usuarioId, monto, fechaConfirmacion
+- Producer al finalizar compra exitosa en Fase 3
+- `KafkaTemplate.send("tickets.orders", event)`
+
+**Tarea 4.4:** Listener consumidor Kafka
+- `@KafkaListener(topics = "tickets.orders", groupId = "ticketflow-notification")`
+- Procesar evento y simular envío de boleto por correo
+- Log estructurado con correlación de trace ID
+- Commit manual del offset después de procesar
+
+**Tarea 4.5:** Dockerfile multi-stage
+- Stage 1: Build con Maven (`maven:3.9-eclipse-temurin-21`)
+- Stage 2: Runtime con `eclipse-temurin:21-jre-alpine` o `distroless`
+- Exponer puerto 8080
+- `ENTRYPOINT ["java", "-jar", "app.jar"]`
+
+**Tarea 4.6:** Configuración despliegue AWS
+- App Runner o ECS Fargate
+- Variables de entorno para DB/Redis/Kafka endpoints
+- Health check endpoints (`/actuator/health`)
+- IAM roles mínimas necesarias
+
+---
+
+### 🟟 PRUEBAS (Cross-Fase)
+
+**Unit Tests (mínimo por implementación):**
+- Cada nuevo servicio/método: 2 tests ruta feliz + 2 tests ruta error
+- Tests documentados con `@Test` description y `@DisplayName`
+- Cobertura mínima: 80% (configurable en pom.xml)
+
+**Integration Tests:**
+- Escenario completo: crear evento → bloquear asiento → confirmar pago → verificar estado
+- Probar flujo compensación (pago fallado)
+- Probar concurrencia con Testcontainers
+
+**Testcontainers:**
+- PostgreSQL container
+- Redis container  
+- Kafka container (con Zookeeper)
+- Tests que inician/para instancias reales
+
+---
+
+## Definiciones de Éxito (Done Criteria)
+
+### Fase 1:
+- [ ] Proyecto Maven levanta sin errores
+- [ ] docker-compose levanta Postgres, Redis, Kafka
+- [ ] Endpoint GET /eventos/{id}/asientos responde 200
+- [ ] JWT authentication filter funciona (rutas públicas/protegidas)
+
+### Fase 2:
+- [ ] SeatLockService acquireLock funciona átomico
+- [ ] Endpoint bloquear retorna lock válido o 409
+- [ ] Endpoint liberar libera lock correctamente
+- [ ] Prueba concurrencia: 20 hilos, solo 1 obtiene lock
+
+### Fase 3:
+- [ ] Endpoint confirmar procesa saga completada
+- [ ] Pago exitoso → reserva COMPLETADA + event Kafka publicado
+- [ ] Pago fallado → reserva CANCELADA + lock liberado
+- [ ] Pessimistic lock previene double-booking en PostgreSQL
+
+### Fase 4:
+- [ ] Consumer Kafka consume eventos de `tickets.orders`
+- [ ] Envío de boleto simulado por logging
+- [ ] Dockerfile multi-stage build exitoso
+- [ ] Imagen lista para despliegue AWS
+
+---
+
+## Próximos Pasos (Para tu siguente sesión)
+
+1. **Retomar Fase 1, Tarea 1.1:** Inicializar proyecto Maven
+2. Configurar `pom.xml` base y propiedades
+3. Crear estructura de paquetes `com.mx.redb.ticketflow`
+4. Verificar que docker-compose funciona localmente
+
+---
+
+*Plan creado el: 2026-08-29*
+*Versión: 1.0 - Aprobado con usuario*
