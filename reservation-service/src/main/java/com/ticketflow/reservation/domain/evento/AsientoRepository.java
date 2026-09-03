@@ -1,8 +1,12 @@
 package com.ticketflow.reservation.domain.evento;
 
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * Repositorio Spring Data JPA para la entidad {@link Asiento}.
@@ -46,4 +50,26 @@ public interface AsientoRepository extends JpaRepository<Asiento, Long> {
      *         encuentra.
      */
     Optional<Asiento> findByFuncionIdAndNumero(Long funcionId, Integer numero);
+
+    /**
+     * Recupera un asiento por su identificador aplicando un bloqueo
+     * pesimista de escritura ({@code SELECT ... FOR UPDATE}) sobre la
+     * fila (spec 0001, sección 3.2).
+     *
+     * <p>Este método debe invocarse <strong>únicamente dentro de una
+     * transacción</strong> (desde un método anotado con
+     * {@code @Transactional}), único contexto en el que el bloqueo
+     * pesimista tiene efecto y se mantiene hasta el commit/rollback de
+     * la transacción. Su propósito es serializar accesos concurrentes
+     * sobre el mismo asiento durante la confirmación de la compra,
+     * evitando el double-booking en la fase de pago y persistencia.</p>
+     *
+     * @param id identificador del asiento a recuperar con bloqueo; no
+     *           puede ser {@code null}.
+     * @return un {@link Optional} con el asiento bloqueado si existe, o
+     *         vacío si no hay asiento con ese identificador.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select a from Asiento a where a.id = :id")
+    Optional<Asiento> findByIdForUpdate(@Param("id") Long id);
 }

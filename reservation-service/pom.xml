@@ -15,8 +15,25 @@
 
     <properties>
         <springdoc.version>2.5.0</springdoc.version>
-        <testcontainers.version>1.19.8</testcontainers.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
+
+    <!-- Anula la versión de Testcontainers gestionada por el BOM de
+         Spring Boot 3.2.5 (1.19.7, con docker-java 3.3.6 y API de Docker
+         1.32), incompatible con Docker Engine 29.x (mínimo API 1.40). El
+         proyecto usa Testcontainers 1.21.4 (docker-java 3.4.x) para
+         conectar con los sockets de Docker Desktop recientes. -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
