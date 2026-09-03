@@ -22,5 +22,12 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+app:
+  payment:
+    mock:
+      # Fuerza el fallo del PaymentGatewayMock (spec 0001 §5) para pruebas
+      # de rollback. Por defecto el cobro simulado es exitoso.
+      fail: false
+
 server:
   port: 8080
