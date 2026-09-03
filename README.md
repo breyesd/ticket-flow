@@ -171,6 +171,7 @@ defecto.
    |----------|-----------|--------|--------|
    | PostgreSQL 16 | `ticketflow-postgres` | `5433` | `jdbc:postgresql://localhost:5433/ticketflow` |
    | Redis 7 | `ticketflow-redis` | `6379` | `redis://localhost:6379` |
+   | Kafka (KRaft) | `ticketflow-kafka` | `9092` | `PLAINTEXT://localhost:9092` |
 
    Credenciales por defecto de PostgreSQL: usuario `ticketflow`, contraseña
    `ticketflow`, base de datos `ticketflow`.
@@ -178,7 +179,9 @@ defecto.
    > El puerto del host del contenedor es `5433` (mapeado a `5432` interno)
    > para no chocar con un PostgreSQL local que ya use el 5432.
 
-   > En Fase 4 se agregará el servicio Kafka al mismo archivo.
+   > Kafka se levanta en modo KRaft single-node (sin Zookeeper). El topic
+   > `tickets.orders` es el que usa el `reservation-service` para publicar
+   > `ReservaConfirmadaEvent` y el `notification-service` para consumirlo.
 
 2. Compilar y empaquetar todos los módulos:
 
@@ -191,6 +194,16 @@ defecto.
    ```bash
    ./mvnw -pl reservation-service spring-boot:run
    ./mvnw -pl notification-service spring-boot:run
+   ```
+
+   Alternativamente, empaquetar y ejecutar como imagen Docker (multi-stage,
+   usuario no-root):
+
+   ```bash
+   docker build -f reservation-service/Dockerfile -t ticketflow-reservation-service:1.0.0 .
+   docker build -f notification-service/Dockerfile -t ticketflow-notification-service:1.0.0 .
+   docker run --network host -e DB_URL=... -e REDIS_HOST=... -e KAFKA_BOOTSTRAP_SERVERS=localhost:9092 \
+     ticketflow-reservation-service:1.0.0
    ```
 
 ## Build, calidad y seguridad
@@ -210,3 +223,5 @@ La cobertura se mide con JaCoCo (sin umbral que falle el build).
 - **Constitución** — `docs/constitution.md` (principios innegociables).
 - **Spec activa** — `docs/specs/0001-ticketflow-engine.md`.
 - **Planes** — `docs/plans/`.
+- **Despliegue AWS** — `docs/despliegue-aws.md` (build de imagen, ECR, ECS
+  Fargate / App Runner).
