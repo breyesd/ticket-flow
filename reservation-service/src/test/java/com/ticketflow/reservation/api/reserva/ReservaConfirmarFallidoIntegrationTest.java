@@ -13,11 +13,13 @@ import com.ticketflow.reservation.domain.reserva.Reserva;
 import com.ticketflow.reservation.domain.reserva.ReservaEstado;
 import com.ticketflow.reservation.domain.reserva.ReservaRepository;
 import com.ticketflow.reservation.lock.SeatLockService;
+import com.ticketflow.reservation.mensajeria.EventPublisher;
 import com.ticketflow.reservation.support.EmbeddedRedisExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -57,6 +59,14 @@ class ReservaConfirmarFallidoIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private SeatLockService seatLockService;
+
+    /**
+     * Publicador de eventos sustituido por un mock para que este test,
+     * centrado en el rollback de pago, no intente conectar con un
+     * broker Kafka inexistente (plan Fase 4, F4.T3: publicador fake).
+     */
+    @MockBean
+    private EventPublisher eventPublisher;
 
     /**
      * Verifica que, con el switch de fallo activo, confirmar una compra
