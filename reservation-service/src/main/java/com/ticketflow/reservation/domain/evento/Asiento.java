@@ -115,6 +115,21 @@ public class Asiento {
     }
 
     /**
+     * Transiciona el asiento a {@link AsientoEstado#VENDIDO} como
+     * parte de una confirmación de compra exitosa (spec 0001, sección
+     * 3.2).
+     *
+     * <p>La transición es unidireccional: una vez vendido, el asiento
+     * no vuelve a {@link AsientoEstado#DISPONIBLE}. Se invoca
+     * únicamente desde el flujo de confirmación, dentro de una
+     * transacción que ha validado previamente el estado
+     * {@link AsientoEstado#DISPONIBLE} bajo bloqueo pesimista.</p>
+     */
+    public void vender() {
+        this.estado = AsientoEstado.VENDIDO;
+    }
+
+    /**
      * @return marca temporal de creación del registro tal y como la
      *         asigna la base de datos por defecto de la columna
      *         {@code created_at}.

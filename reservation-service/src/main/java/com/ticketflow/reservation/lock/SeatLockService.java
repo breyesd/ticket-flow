@@ -135,4 +135,32 @@ public interface SeatLockService {
      *         {@code false} en caso contrario.
      */
     boolean isLocked(Long funcionId, Long asientoId);
+
+    /**
+     * Indica si el lock del asiento {@code asientoId} de la función
+     * {@code funcionId} pertenece actualmente al propietario
+     * identificado por {@code token} (es decir, el token almacenado en
+     * Redis coincide con el proporcionado).
+     *
+     * <p>Es una verificación <strong>no destructiva</strong>: no libera
+     * ni modifica el lock. Se usa en la confirmación de compra para
+     * validar que el {@code reservationId} presentado sigue siendo
+     * dueño del lock antes de aplicar el bloqueo pesimista y cobrar,
+     * sin liberar accidentalmente un lock ajeno. La comparación se hace
+     * de forma atómica (script Lua) para no introducir una ventana de
+     * carrera entre la lectura y la decisión.</p>
+     *
+     * @param funcionId identificador de la función; no puede ser
+     *                  {@code null}.
+     * @param asientoId identificador del asiento; no puede ser
+     *                  {@code null}.
+     * @param token     token de propietario a verificar; si es
+     *                  {@code null} o está en blanco, devuelve
+     *                  {@code false}.
+     * @return {@code true} si la clave existe y su valor coincide con
+     *         {@code token}; {@code false} en cualquier otro caso (no
+     *         hay lock, el token no coincide, o el token es
+     *         {@code null}/vacío).
+     */
+    boolean isOwner(Long funcionId, Long asientoId, String token);
 }

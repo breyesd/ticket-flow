@@ -1,11 +1,13 @@
 package com.ticketflow.reservation.domain.evento;
 
 /**
- * Excepción de dominio lanzada cuando se intenta bloquear un
- * {@link Asiento} que ya está en estado {@link AsientoEstado#VENDIDO}.
+ * Excepción de dominio lanzada cuando se intenta bloquear o confirmar
+ * la compra de un {@link Asiento} que ya está en estado
+ * {@link AsientoEstado#VENDIDO}.
  *
  * <p>El {@code @RestControllerAdvice} central la traduce a una
- * respuesta HTTP 422 Unprocessable Entity con cuerpo RFC 7807.</p>
+ * respuesta HTTP 409 Conflict con cuerpo RFC 7807 (spec 0001, sección
+ * 2.5: "asiento ya VENDIDO").</p>
  */
 public class AsientoVendidoException extends RuntimeException {
 

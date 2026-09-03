@@ -8,6 +8,7 @@ import com.ticketflow.reservation.domain.evento.AsientoRepository;
 import com.ticketflow.reservation.domain.evento.AsientoVendidoException;
 import com.ticketflow.reservation.domain.evento.FuncionNotFoundException;
 import com.ticketflow.reservation.domain.evento.FuncionRepository;
+import com.ticketflow.reservation.domain.reserva.PagoRechazadoException;
 import com.ticketflow.reservation.lock.SeatLockService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -60,6 +61,7 @@ public class ReservaController {
     private final FuncionRepository funcionRepository;
     private final AsientoRepository asientoRepository;
     private final SeatLockService seatLockService;
+    private final ReservaService reservaService;
 
     /**
      * Constructor con inyección por constructor.
@@ -67,13 +69,16 @@ public class ReservaController {
      * @param funcionRepository   repositorio de funciones; no puede ser {@code null}.
      * @param asientoRepository   repositorio de asientos; no puede ser {@code null}.
      * @param seatLockService     servicio de lock distribuido; no puede ser {@code null}.
+     * @param reservaService      servicio de confirmación de compra; no puede ser {@code null}.
      */
     public ReservaController(FuncionRepository funcionRepository,
                              AsientoRepository asientoRepository,
-                             SeatLockService seatLockService) {
+                             SeatLockService seatLockService,
+                             ReservaService reservaService) {
         this.funcionRepository = funcionRepository;
         this.asientoRepository = asientoRepository;
         this.seatLockService = seatLockService;
+        this.reservaService = reservaService;
     }
 
     /**
@@ -94,7 +99,7 @@ public class ReservaController {
      * @return {@link BloquearResponse} con el {@code reservationId}
      *         (token) si éxito; nunca {@code null}.
      * @throws FuncionNotFoundException     si la función no existe (mapeado a 404).
-     * @throws AsientoVendidoException      si el asiento está VENDIDO (mapeado a 422).
+     * @throws AsientoVendidoException      si el asiento está VENDIDO (mapeado a 409).
      */
     @Operation(
             summary = "Bloquea un asiento para selección",
@@ -110,7 +115,7 @@ public class ReservaController {
                 description = "La función o el asiento no existen."),
         @ApiResponse(responseCode = "409",
                 description = "El asiento ya está bloqueado por otro cliente."),
-        @ApiResponse(responseCode = "422",
+        @ApiResponse(responseCode = "409",
                 description = "El asiento ya está vendido (estado VENDIDO en BD).")
     })
     @PostMapping("/bloquear")
@@ -236,5 +241,73 @@ public class ReservaController {
 
         // Hay lock pero token no coincide: no es propietario
         throw new AsientoNoPropietarioException(asientoId);
+    }
+
+    /**
+     * Confirma una compra ejecutando la transacción ACID completa
+     * (spec 0001, sección 3.2; plan Fase 3, F3.T4).
+     *
+     * <p>Flujo:</p>
+     * <ol>
+     *   <li>Delega en {@link ReservaService#confirmar(ConfirmarRequest)},
+     *       que valida el lock del {@code reservationId}, aplica el
+     *       bloqueo pesimista y cobra vía el {@link
+     *       com.ticketflow.reservation.pago.PaymentGatewayMock}.</li>
+     *   <li>Si el resultado es {@link
+     *       ReservaService.ConfirmacionResult.Exitosa}, devuelve 200 con
+     *       el resumen de la reserva {@code PAGADA}.</li>
+     *   <li>Si el resultado es {@link
+     *       ReservaService.ConfirmacionResult.Fallida}, lanza
+     *       {@link PagoRechazadoException} que el
+     *       {@code @RestControllerAdvice} mapea a 422 con el motivo.</li>
+     * </ol>
+     *
+     * @param request petición con {@code reservationId},
+     *        {@code funcionId}, {@code asientoId}, {@code usuarioId} y
+     *        {@code monto}; no puede ser {@code null}.
+     * @return 200 con {@link ConfirmarResponse} si el pago fue
+     *         aceptado; nunca {@code null}.
+     * @throws FuncionNotFoundException      si la función no existe o el
+     *                                       asiento no le pertenece (404).
+     * @throws com.ticketflow.reservation.domain.reserva.ReservaLockInvalidoException
+     *                                       si el lock no pertenece al
+     *                                       reservationId, expiró o no
+     *                                       existe (409).
+     * @throws AsientoVendidoException       si el asiento ya está
+     *                                       {@code VENDIDO} (409).
+     * @throws PagoRechazadoException        si la pasarela rechaza el
+     *                                       cobro (422).
+     */
+    @Operation(
+            summary = "Confirma la compra de un asiento bloqueado",
+            description = "Ejecuta la transacción ACID de confirmación: "
+                    + "valida el lock, aplica SELECT ... FOR UPDATE sobre "
+                    + "el asiento, cobra vía el gateway de pago y, si el "
+                    + "cobro es exitoso, marca el asiento como VENDIDO y "
+                    + "crea la reserva PAGADA. Si el pago es rechazado, "
+                    + "crea una reserva FALLIDA y devuelve 422."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200",
+                description = "Compra confirmada; devuelve resumen de la reserva PAGADA."),
+        @ApiResponse(responseCode = "404",
+                description = "La función o el asiento no existen."),
+        @ApiResponse(responseCode = "409",
+                description = "El lock expiró/no pertenece al reservationId "
+                        + "o el asiento ya está vendido."),
+        @ApiResponse(responseCode = "422",
+                description = "La pasarela de pago rechazó el cobro.")
+    })
+    @PostMapping("/confirmar")
+    public ResponseEntity<ConfirmarResponse> confirmar(@RequestBody ConfirmarRequest request) {
+        ReservaService.ConfirmacionResult result = reservaService.confirmar(request);
+
+        if (result instanceof ReservaService.ConfirmacionResult.Exitosa exitosa) {
+            return ResponseEntity.ok(exitosa.response());
+        }
+
+        ReservaService.ConfirmacionResult.Fallida fallida =
+                (ReservaService.ConfirmacionResult.Fallida) result;
+        throw new PagoRechazadoException(fallida.motivo());
     }
 }

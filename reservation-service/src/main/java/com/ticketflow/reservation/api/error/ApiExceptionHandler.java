@@ -5,6 +5,8 @@ import com.ticketflow.reservation.domain.evento.AsientoNoPropietarioException;
 import com.ticketflow.reservation.domain.evento.AsientoVendidoException;
 import com.ticketflow.reservation.domain.evento.EventoNotFoundException;
 import com.ticketflow.reservation.domain.evento.FuncionNotFoundException;
+import com.ticketflow.reservation.domain.reserva.PagoRechazadoException;
+import com.ticketflow.reservation.domain.reserva.ReservaLockInvalidoException;
 import java.net.URI;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -115,19 +117,63 @@ public class ApiExceptionHandler {
     }
 
     /**
-     * Mapea {@link AsientoVendidoException} a una respuesta HTTP 422
-     * Unprocessable Entity con cuerpo Problem Details.
+     * Mapea {@link AsientoVendidoException} a una respuesta HTTP 409
+     * Conflict con cuerpo Problem Details.
      *
      * @param ex excepción lanzada cuando el asiento ya está vendido.
-     * @return respuesta 422 con cuerpo RFC 7807.
+     * @return respuesta 409 con cuerpo RFC 7807.
      */
     @ExceptionHandler(AsientoVendidoException.class)
     public ResponseEntity<ProblemDetail> handleAsientoVendido(AsientoVendidoException ex) {
+        return conflict(ex.getMessage());
+    }
+
+    /**
+     * Mapea {@link ReservaLockInvalidoException} a una respuesta HTTP
+     * 409 Conflict con cuerpo Problem Details.
+     *
+     * @param ex excepción lanzada cuando el lock del asiento no
+     *           pertenece al propietario presentado, expiró o no
+     *           existe.
+     * @return respuesta 409 con cuerpo RFC 7807.
+     */
+    @ExceptionHandler(ReservaLockInvalidoException.class)
+    public ResponseEntity<ProblemDetail> handleReservaLockInvalido(
+            ReservaLockInvalidoException ex) {
+        return conflict(ex.getMessage());
+    }
+
+    /**
+     * Mapea {@link PagoRechazadoException} a una respuesta HTTP 422
+     * Unprocessable Entity con cuerpo Problem Details.
+     *
+     * @param ex excepción lanzada cuando la pasarela de pago rechaza
+     *           el cobro.
+     * @return respuesta 422 con cuerpo RFC 7807.
+     */
+    @ExceptionHandler(PagoRechazadoException.class)
+    public ResponseEntity<ProblemDetail> handlePagoRechazado(PagoRechazadoException ex) {
         ProblemDetail body = ProblemDetail.forStatusAndDetail(
                 HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
         body.setTitle("Unprocessable Entity");
         body.setType(URI.create("https://ticketflow.dev/errors/unprocessable-entity"));
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(body);
+    }
+
+    /**
+     * Construye una respuesta HTTP 409 Conflict con cuerpo Problem
+     * Details, reutilizada por todos los handlers de conflicto.
+     *
+     * @param detail mensaje de detalle específico de la excepción.
+     * @return respuesta 409 con cuerpo RFC 7807.
+     */
+    private ResponseEntity<ProblemDetail> conflict(String detail) {
+        ProblemDetail body = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, detail);
+        body.setTitle("Conflict");
+        body.setType(URI.create("https://ticketflow.dev/errors/conflict"));
+        return ResponseEntity.status(HttpStatus.CONFLICT)
                 .contentType(MediaType.APPLICATION_PROBLEM_JSON)
                 .body(body);
     }

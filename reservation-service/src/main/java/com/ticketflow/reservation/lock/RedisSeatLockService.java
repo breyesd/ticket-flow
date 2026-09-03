@@ -73,6 +73,19 @@ public class RedisSeatLockService implements SeatLockService {
             Long.class);
 
     /**
+     * Script Lua que verifica la propiedad del lock sin liberarlo.
+     * Compara el token facilitado con el almacenado y devuelve {@code 1}
+     * si coinciden, {@code 0} en caso contrario. Al no incluir
+     * {@code DEL}, es estrictamente no destructivo y se usa en
+     * {@link #isOwner} para decidir si el llamante sigue siendo dueño
+     * del lock antes de confirmar una compra.
+     */
+    private static final DefaultRedisScript<Long> IS_OWNER_SCRIPT = new DefaultRedisScript<>(
+            "if redis.call('GET', KEYS[1]) == ARGV[1] "
+                    + "then return 1 else return 0 end",
+            Long.class);
+
+    /**
      * Plantilla de Redis inyectada por Spring, configurada en
      * {@code RedisConfig} con
      * {@code StringRedisSerializer}/{@code GenericJackson2JsonRedisSerializer}.
@@ -154,6 +167,30 @@ public class RedisSeatLockService implements SeatLockService {
     @Override
     public boolean isLocked(Long funcionId, Long asientoId) {
         return Boolean.TRUE.equals(redisTemplate.hasKey(keyFor(funcionId, asientoId)));
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Detalles de implementación:</p>
+     * <ul>
+     *   <li>Si el token es {@code null} o está en blanco, devuelve
+     *       {@code false} sin tocar Redis (defensa frente a NPE y a
+     *       considerar a un llamante sin token como propietario).</li>
+     *   <li>La comparación se ejecuta en un script Lua
+     *       ({@code GET} + comparación), atómico en Redis, de modo que
+     *       no existe ventana de carrera entre la lectura del token y
+     *       la decisión de propiedad.</li>
+     * </ul>
+     */
+    @Override
+    public boolean isOwner(Long funcionId, Long asientoId, String token) {
+        if (token == null || token.isBlank()) {
+            return false;
+        }
+        String key = keyFor(funcionId, asientoId);
+        Long result = redisTemplate.execute(IS_OWNER_SCRIPT, List.of(key), token);
+        return result != null && result == 1L;
     }
 
     /**
