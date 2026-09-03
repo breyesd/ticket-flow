@@ -14,12 +14,14 @@ import com.ticketflow.reservation.domain.reserva.Reserva;
 import com.ticketflow.reservation.domain.reserva.ReservaEstado;
 import com.ticketflow.reservation.domain.reserva.ReservaRepository;
 import com.ticketflow.reservation.lock.SeatLockService;
+import com.ticketflow.reservation.mensajeria.EventPublisher;
 import com.ticketflow.reservation.support.EmbeddedRedisExtension;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -49,6 +51,17 @@ class ReservaConfirmarIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private SeatLockService seatLockService;
+
+    /**
+     * Publicador de eventos sustituido por un mock para que este test,
+     * centrado en la transacción ACID de confirmación, no intente
+     * conectar con un broker Kafka inexistente (spec 0001, §4; plan
+     * Fase 4, F4.T3: el caso de uso se testea con un publicador fake).
+     * La publicación real a Kafka se verifica en
+     * {@code ReservaPublicacionKafkaIntegrationTest}.
+     */
+    @MockBean
+    private EventPublisher eventPublisher;
 
     /**
      * Verifica que confirmar un asiento libre completa la compra: el
