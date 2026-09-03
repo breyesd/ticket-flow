@@ -1,5 +1,6 @@
 package com.ticketflow.reservation.api.reserva;
 
+import com.ticketflow.common.evento.ReservaConfirmadaEvent;
 import com.ticketflow.reservation.domain.evento.Asiento;
 import com.ticketflow.reservation.domain.evento.AsientoEstado;
 import com.ticketflow.reservation.domain.evento.AsientoRepository;
@@ -14,6 +15,8 @@ import com.ticketflow.reservation.lock.SeatLockService;
 import com.ticketflow.reservation.pago.PaymentGateway;
 import com.ticketflow.reservation.pago.PaymentRequest;
 import com.ticketflow.reservation.pago.PaymentResult;
+import java.time.OffsetDateTime;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,6 +62,7 @@ public class ReservaService {
     private final ReservaRepository reservaRepository;
     private final SeatLockService seatLockService;
     private final PaymentGateway paymentGateway;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Constructor con inyección por constructor.
@@ -73,17 +77,21 @@ public class ReservaService {
      *                            ser {@code null}.
      * @param paymentGateway      pasarela de pago; no puede ser
      *                            {@code null}.
+     * @param eventPublisher      publicador de eventos de dominio de
+     *                            Spring; no puede ser {@code null}.
      */
     public ReservaService(FuncionRepository funcionRepository,
                           AsientoRepository asientoRepository,
                           ReservaRepository reservaRepository,
                           SeatLockService seatLockService,
-                          PaymentGateway paymentGateway) {
+                          PaymentGateway paymentGateway,
+                          ApplicationEventPublisher eventPublisher) {
         this.funcionRepository = funcionRepository;
         this.asientoRepository = asientoRepository;
         this.reservaRepository = reservaRepository;
         this.seatLockService = seatLockService;
         this.paymentGateway = paymentGateway;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -145,12 +153,18 @@ public class ReservaService {
 
     /**
      * Concreta la compra con pago exitoso: transiciona el asiento a
-     * {@code VENDIDO}, persiste una {@link Reserva} {@code PAGADA} y
+     * {@code VENDIDO}, persiste una {@link Reserva} {@code PAGADA},
+     * emite el evento de dominio {@link ReservaConfirmadaEvent} y
      * libera el lock Redis (best-effort).
      *
-     * <p>La emisión del evento de dominio {@code ReservaConfirmadaEvent}
-     * se incorporará en Fase 4; aquí queda el punto de enganche marcado
-     * por el flujo, sin dependencia de mensajería en esta fase.</p>
+     * <p>El evento se publica mediante el
+     * {@link ApplicationEventPublisher} de Spring <strong>después de
+     * confirmarse la transacción</strong> (post-commit): la publicación
+     * real se delega en un <em>listener</em> transaccional anotado con
+     * {@code @TransactionalEventListener(phase = AFTER_COMMIT)} que
+     * invoca al transportador Kafka. Así se garantiza que jamás se
+     * emite un evento de una compra cuya transacción luego falle
+     * (spec 0001, §3.2 y §4).</p>
      *
      * @param asiento asiento bajo bloqueo pesimista a vender.
      * @param request petición original de confirmación.
@@ -165,7 +179,15 @@ public class ReservaService {
                 request.monto(), ReservaEstado.PAGADA);
         reservaRepository.save(reserva);
 
-        // Hook Fase 4: publicar ReservaConfirmadaEvent en tickets.orders.
+        ReservaConfirmadaEvent evento = new ReservaConfirmadaEvent(
+                reserva.getId(),
+                asiento.getFuncion().getEvento().getId(),
+                request.funcionId(),
+                asiento.getId(),
+                request.usuarioId(),
+                reserva.getMonto(),
+                OffsetDateTime.now());
+        eventPublisher.publishEvent(evento);
 
         seatLockService.releaseLock(request.funcionId(), request.asientoId(), token);
 

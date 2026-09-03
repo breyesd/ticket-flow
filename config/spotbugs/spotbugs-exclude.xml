@@ -16,6 +16,13 @@
   interna mutable. El filtro se limita a esta clase (no al proyecto
   entero) para no silenciar defectos reales que puedan aparecer en
   otros servicios que reciban tipos verdaderamente mutables.
+
+  EI_EXPOSE_REP2 (scope KafkaReservaConfirmadaPublisher): mismo caso
+  que el anterior, pero aplicado al KafkaTemplate inyectado en el
+  publicador de reservas. El KafkaTemplate es un bean de Spring con
+  ámbito singleton y, por diseño de spring-kafka, seguro para hilos;
+  almacenar su referencia por inyección por constructor no expone
+  representación interna mutable alguna.
 -->
 <FindBugsFilter>
     <Match>
@@ -23,6 +30,10 @@
     </Match>
     <Match>
         <Class name="com.ticketflow.reservation.lock.RedisSeatLockService"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="com.ticketflow.reservation.mensajeria.KafkaReservaConfirmadaPublisher"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
 </FindBugsFilter>
