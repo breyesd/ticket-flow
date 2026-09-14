@@ -22,6 +22,8 @@ buildNumber.properties
 .classpath
 .project
 .factorypath
+graphify-out/
+.opencode
 
 # OS
 .DS_Store
