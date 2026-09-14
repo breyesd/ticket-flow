@@ -127,9 +127,10 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push reservation-service
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
-          context: ./reservation-service
+          context: .
+          file: ./reservation-service/Dockerfile
           push: true
           tags: ${{ steps.meta-reservation.outputs.tags }}
           labels: ${{ steps.meta-reservation.outputs.labels }}
@@ -148,9 +149,10 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push notification-service
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
-          context: ./notification-service
+          context: .
+          file: ./notification-service/Dockerfile
           push: true
           tags: ${{ steps.meta-notification.outputs.tags }}
           labels: ${{ steps.meta-notification.outputs.labels }}
