@@ -1,0 +1,18 @@
+# Configuration for dependency-review-action
+# https://github.com/actions/dependency-review-action#configuration-options
+
+# Fail the build if any vulnerability with severity >= high is found
+fail-on-severity: high
+
+# List of GHSA IDs to allow (exceptions must be justified in comments)
+# Format: "GHSA-xxxx-xxxx-xxxx": "Justification for allowing this vulnerability"
+allow-ghsas: {}
+
+# Optional: Set to true to also fail on moderate severity in development dependencies
+# fail-on-severity-moderate-dev: false
+
+# Optional: Comment on PR with summary (default: true)
+# comment-summary-in-pr: true
+
+# Optional: Show only vulnerabilities that are not in allow-ghsas (default: false)
+# show-only-vulnerable-dependencies: false
