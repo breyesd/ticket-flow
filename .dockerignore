@@ -10,3 +10,5 @@ draft
 .github
 *.log
 .env
+graphify-out
+.opencode
