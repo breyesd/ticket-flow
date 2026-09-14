@@ -17,6 +17,7 @@ tolerancia a fallos mediante una arquitectura desacoplada y basada en eventos.
 - [Estructura del repositorio](#estructura-del-repositorio)
 - [Requisitos previos](#requisitos-previos)
 - [Puesta en marcha](#puesta-en-marcha)
+- [CI/CD](#cicd)
 - [Build, calidad y seguridad](#build-calidad-y-seguridad)
 - [Documentación](#documentación)
 
@@ -51,6 +52,7 @@ Dos microservicios en un repositorio Maven multi-module con un módulo común
 | Tests de integración | Testcontainers (Postgres, Redis y Kafka reales) |
 | Infraestructura local | Docker & Docker Compose |
 | Despliegue cloud | AWS (ECS Fargate / App Runner) |
+| CI/CD | GitHub Actions |
 
 ## Estrategia de concurrencia
 
@@ -113,9 +115,26 @@ ticket-flow/
 ├── mvnw / .mvn                 # Maven wrapper
 ├── config/checkstyle/checkstyle.xml
 ├── docker-compose.yml          # Postgres 16 + Redis 7 (+ Kafka)
+├── .github/
+│   └── workflows/
+│       ├── ci.yml              # CI: build, test, quality gates, Docker push
+│       ├── codeql.yml          # CodeQL static analysis
+│       └── dependency-review.yml # Dependency vulnerability scanning
+├── docs/
+│   ├── constitution.md
+│   ├── specs/
+│   ├── plans/
+│   ├── despliegue-aws.md
+│   └── diagrams/               # Diagramas de arquitectura (HTML + PNG)
+│       ├── ticketflow-runtime-architecture.html
+│       └── ticketflow-kafka-topology.html
 ├── common/                     # contrato de dominio compartido (eventos, DTOs)
 ├── reservation-service/        # dominio, locks, pago, ACID, API
+│   ├── Dockerfile
+│   └── src/
 └── notification-service/       # listener Kafka, simulación de envío
+    ├── Dockerfile
+    └── src/
 ```
 
 ## Requisitos previos
@@ -206,6 +225,41 @@ defecto.
      ticketflow-reservation-service:1.0.0
    ```
 
+## CI/CD
+
+Los pipelines están definidos en `.github/workflows/`:
+
+| Workflow | Trigger | Propósito |
+|----------|---------|-----------|
+| **`ci.yml`** | push/PR a `main` | Build, test (unit + integración), quality gates (checkstyle, spotbugs, dependency-check), JaCoCo coverage, Docker build & push a GHCR (`ghcr.io/.../ticket-flow/{service}:sha-<commit>`) |
+| **`codeql.yml`** | push/PR/schedule (lunes 6 AM) | Análisis estático de seguridad (CodeQL) para Java |
+| **`dependency-review.yml`** | PR a `main` | Escanea dependencias nuevas/modificadas por vulnerabilidades high/critical (falla el PR si encuentra) |
+
+### Artefactos en CI (`ci.yml`)
+
+Retención 14 días:
+- **JaCoCo reports**: `jacoco-reports` → `**/target/site/jacoco/`
+- **Test results**: `surefire-reports` → `**/target/surefire-reports/`, `**/target/failsafe-reports/`
+- **SpotBugs**: `spotbugs-reports` → `**/target/spotbugsXml.xml`
+- **Dependency-Check**: `dependency-check-reports` → `**/target/dependency-check-report.html/json`
+
+Test results se publican en la pestaña **Checks** del PR (via `dorny/test-reporter`).
+
+### Imágenes Docker (GHCR)
+
+Solo en push a `main`:
+- `ghcr.io/<owner>/ticket-flow/reservation-service:sha-<commit>`
+- `ghcr.io/<owner>/ticket-flow/notification-service:sha-<commit>`
+- Tags adicionales: `latest`, `branch-main`, `sha-<commit>`
+- Platform: `linux/amd64`
+- Cache: GitHub Actions cache (GHA)
+
+### Dependency Review
+
+Config en `.github/dependency-review-config.yml`:
+- `fail-on-severity: high` — falla en vulnerabilidades high/critical
+- `allow-ghsas: []` — lista de excepciones (array de GHSA IDs con justificación)
+
 ## Build, calidad y seguridad
 
 | Comando | Descripción |
@@ -223,5 +277,8 @@ La cobertura se mide con JaCoCo (sin umbral que falle el build).
 - **Constitución** — `docs/constitution.md` (principios innegociables).
 - **Spec activa** — `docs/specs/0001-ticketflow-engine.md`.
 - **Planes** — `docs/plans/`.
-- **Despliegue AWS** — `docs/despliegue-aws.md` (build de imagen, ECR, ECS
-  Fargate / App Runner).
+- **Despliegue AWS** — `docs/despliegue-aws.md` (build de imagen, ECR, ECS Fargate / App Runner).
+- **Diagramas de arquitectura** — `docs/diagrams/`
+  - `ticketflow-runtime-architecture.html` — arquitectura runtime (servicios, infra, flujo de datos)
+  - `ticketflow-kafka-topology.html` — topología Kafka (topics, producers, consumers)
+  - Versiones light/dark PNG incluidas para visualización directa en GitHub
