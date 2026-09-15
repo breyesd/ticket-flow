@@ -1,7 +1,5 @@
 package com.ticketflow.reservation.architecture;
 
-import com.tngtech.archunit.core.domain.JavaClass;
-import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -46,7 +44,8 @@ class ReservationArchitectureTest {
                 "com.ticketflow.reservation.lock..",
                 "com.ticketflow.reservation.pago..",
                 "com.ticketflow.reservation.config..")
-            .because("El dominio (domain) es el núcleo y no debe depender de capas externas");
+            .because("El dominio (domain) es el núcleo y no debe depender "
+                + "de capas externas");
 
     @ArchTest
     static final ArchRule api_solo_usa_domain_y_spring_web =
@@ -70,7 +69,8 @@ class ReservationArchitectureTest {
                 "org.springframework.context..",
                 "io.swagger.v3.oas.annotations..",
                 "com.fasterxml.jackson..")
-            .because("La capa API (controllers, DTOs, services de aplicación) orquestra domain, lock, pago y usa Spring Web + OpenAPI/Swagger");
+            .because("La capa API (controllers, DTOs, services de aplicación) "
+                + "orquesta domain, lock, pago y usa Spring Web + OpenAPI/Swagger");
 
     @ArchTest
     static final ArchRule mensajeria_usa_domain_kafka_y_interno =
@@ -88,7 +88,8 @@ class ReservationArchitectureTest {
                 "org.springframework.context.event..",
                 "java..",
                 "com.fasterxml.jackson..")
-            .because("La capa de mensajería usa domain events, sus propias interfaces, Spring Kafka y transacciones");
+            .because("La capa de mensajería usa domain events, sus propias "
+                + "interfaces, Spring Kafka y transacciones");
 
     @ArchTest
     static final ArchRule lock_usa_domain_y_redis =
@@ -102,7 +103,8 @@ class ReservationArchitectureTest {
                 "org.springframework.data.redis..",
                 "org.springframework.stereotype..",
                 "java..")
-            .because("El lock distribuido es infraestructura: usa Redis, domain y sus propios tipos internos");
+            .because("El lock distribuido es infraestructura: usa Redis, "
+                + "domain y sus propios tipos internos");
 
     @ArchTest
     static final ArchRule pago_usa_domain_y_spring =
@@ -116,7 +118,8 @@ class ReservationArchitectureTest {
                 "org.springframework.stereotype..",
                 "org.springframework.beans.factory..",
                 "java..")
-            .because("El gateway de pago usa domain, sus propios DTOs y Spring para inyección");
+            .because("El gateway de pago usa domain, sus propios DTOs "
+                + "y Spring para inyección");
 
     @ArchTest
     static final ArchRule config_usa_spring_redis_kafka =
@@ -134,7 +137,8 @@ class ReservationArchitectureTest {
                 "org.springframework.boot.autoconfigure..",
                 "java..",
                 "com.fasterxml.jackson..")
-            .because("La configuración Spring puede usar Redis, Kafka y beans de infraestructura");
+            .because("La configuración Spring puede usar Redis, Kafka "
+                + "y beans de infraestructura");
 
     @ArchTest
     static final ArchRule repositorios_jpa_en_paquete_domain =
@@ -161,7 +165,8 @@ class ReservationArchitectureTest {
             .that().resideInAPackage("com.ticketflow.reservation.api..")
             .should().dependOnClassesThat()
             .resideInAPackage("com.ticketflow.reservation.mensajeria..")
-            .because("API y mensajería son capas separadas, no deben depender mutuamente (código de producción)");
+            .because("API y mensajería son capas separadas, no deben "
+                + "depender mutuamente (código de producción)");
 
     @ArchTest
     static final ArchRule solo_capas_permitidas_usan_spring_web_kafka_redis =
@@ -173,12 +178,16 @@ class ReservationArchitectureTest {
                 "com.ticketflow.reservation.pago..",
                 "com.ticketflow.reservation.config..")
             .should().dependOnClassesThat()
-            .resideInAnyPackage("org.springframework.web..", "org.springframework.kafka..", "org.springframework.data.redis..")
-            .because("Solo API (web), mensajería (Kafka), lock (Redis), pago y config pueden depender de Spring Web/Kafka/Redis");
+            .resideInAnyPackage("org.springframework.web..",
+                "org.springframework.kafka..",
+                "org.springframework.data.redis..")
+            .because("Solo API (web), mensajería (Kafka), lock (Redis), "
+                + "pago y config pueden depender de Spring Web/Kafka/Redis");
 
     @ArchTest
     static final ArchRule no_ciclos_entre_modulos_principales =
         slices().matching("com.ticketflow.reservation.(*)..")
             .should().beFreeOfCycles()
-            .because("No debe haber ciclos de dependencia entre los módulos principales (api, domain, mensajeria, lock, pago, config)");
+            .because("No debe haber ciclos de dependencia entre los módulos "
+                + "principales (api, domain, mensajeria, lock, pago, config)");
 }

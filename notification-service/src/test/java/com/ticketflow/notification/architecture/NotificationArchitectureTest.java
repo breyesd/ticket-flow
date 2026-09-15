@@ -65,7 +65,8 @@ class NotificationArchitectureTest {
                 "com.fasterxml.jackson..",
                 "java..",
                 "jakarta.validation..")
-            .because("notification-service solo usa common (eventos), Spring Kafka, core y SLF4J para logging");
+            .because("notification-service solo usa common (eventos), Spring Kafka, "
+                + "core y SLF4J para logging");
 
     @ArchTest
     static final ArchRule listener_en_paquete_mensajeria =
