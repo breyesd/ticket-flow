@@ -10,6 +10,7 @@ TicketFlow es una plataforma backend distribuida de reservas y venta de entradas
 - **Caché y Concurrencia Distribuida:** Redis 7 (Spring Data Redis)
 - **Mensajería Asíncrona:** Apache Kafka o RabbitMQ
 - **Documentación de API:** springdoc-openapi v2 (OpenAPI 3)
+- **Tests de Arquitectura:** ArchUnit 1.4+ (JUnit 5)
 - **Infraestructura Local:** Docker & Docker Compose
 - **Despliegue Cloud:** AWS (ECS Fargate / App Runner)
 
@@ -59,6 +60,7 @@ TicketFlow es una plataforma backend distribuida de reservas y venta de entradas
 
 ### Build y Tests
 - **Tests:** `./mvnw test`
+- **Tests de arquitectura (ArchUnit):** `./mvnw test -Dtest=*ArchitectureTest -Djacoco.skip=true`
 - **Cobertura:** plugin JaCoCo. Genera el reporte de cobertura sin umbral que falle el build; la cobertura se revisa como guía, no como puerta numérica.
 - **Verificación completa (build + tests + calidad/seguridad configuradas):** `./mvnw verify`
 
@@ -73,6 +75,32 @@ TicketFlow es una plataforma backend distribuida de reservas y venta de entradas
 - **OWASP Dependency-Check:** escanea dependencias contra la base NVD por CVEs conocidos. Se ejecuta con `./mvnw dependency-check:check`.
 - **SpotBugs + Find Security Bugs:** análisis estático de patrones inseguros en el código propio (SQL injection, XSS, uso inseguro de crypto, etc.). Se ejecuta con `./mvnw spotbugs:check`.
 - Ambos se enlazan a `./mvnw verify`.
+
+### Tests de Arquitectura (ArchUnit)
+Tests automatizados que validan reglas de arquitectura en cada build:
+
+| Módulo | Test | Reglas clave |
+|--------|------|-------------|
+| **common** | `CommonArchitectureTest` | Independiente: sin Spring, JPA, Kafka; no depende de `reservation-service` ni `notification-service` |
+| **reservation-service** | `ReservationArchitectureTest` | Domain puro (sin dependencias a capas externas); API orquesta lock/pago; mensajería usa Kafka; lock usa Redis; config usa Spring; sin ciclos entre módulos |
+| **notification-service** | `NotificationArchitectureTest` | Sin JPA; solo common + Kafka + SLF4J; listeners en `mensajeria`; services en `notificacion`; sin Spring Web |
+
+**Reglas transversales:**
+- `common` no debe tener dependencias a frameworks (Spring, JPA, Kafka) ni a servicios concretos
+- `domain` es el núcleo: no depende de `api`, `mensajeria`, `lock`, `pago`, `config`
+- `api` (controllers, DTOs, services de aplicación) orquestra `domain`, `lock`, `pago`
+- `lock` (infraestructura) usa Redis y `domain`
+- `mensajeria` usa `domain` events y Spring Kafka
+- `pago` usa `domain` y Spring para inyección
+- `config` usa Spring (Redis, Kafka, beans de infraestructura)
+- `notification-service` es stateless: sin JPA, consume eventos vía Kafka
+- Detección de ciclos: `slices().should().beFreeOfCycles()` entre módulos principales
+- Tests excluidos automáticamente via `ImportOption.DoNotIncludeTests`
+
+**Comando:**
+```bash
+./mvnw test -Dtest=*ArchitectureTest -Djacoco.skip=true
+```
 
 ---
 
