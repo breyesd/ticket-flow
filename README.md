@@ -19,6 +19,7 @@ tolerancia a fallos mediante una arquitectura desacoplada y basada en eventos.
 - [Puesta en marcha](#puesta-en-marcha)
 - [CI/CD](#cicd)
 - [Build, calidad y seguridad](#build-calidad-y-seguridad)
+- [Tests de arquitectura](#tests-de-arquitectura)
 - [Documentación](#documentación)
 
 ## Arquitectura
@@ -50,6 +51,7 @@ Dos microservicios en un repositorio Maven multi-module con un módulo común
 | Mensajería asíncrona | Apache Kafka |
 | Documentación de API | springdoc-openapi v2 (OpenAPI 3) |
 | Tests de integración | Testcontainers (Postgres, Redis y Kafka reales) |
+| Tests de arquitectura | ArchUnit 1.4+ (JUnit 5) |
 | Infraestructura local | Docker & Docker Compose |
 | Despliegue cloud | AWS (ECS Fargate / App Runner) |
 | CI/CD | GitHub Actions |
@@ -111,7 +113,7 @@ La documentación OpenAPI se expone en `/v3/api-docs` y la Swagger UI en
 
 ```
 ticket-flow/
-├── pom.xml                     # parent POM (dependencyManagement, plugins de calidad)
+├── pom.xml                     # parent POM (dependencyManagement, plugins de calidad, ArchUnit)
 ├── mvnw / .mvn                 # Maven wrapper
 ├── config/checkstyle/checkstyle.xml
 ├── docker-compose.yml          # Postgres 16 + Redis 7 (+ Kafka)
@@ -129,12 +131,15 @@ ticket-flow/
 │       ├── ticketflow-runtime-architecture.html
 │       └── ticketflow-kafka-topology.html
 ├── common/                     # contrato de dominio compartido (eventos, DTOs)
+│   └── src/test/.../architecture/CommonArchitectureTest.java
 ├── reservation-service/        # dominio, locks, pago, ACID, API
 │   ├── Dockerfile
 │   └── src/
+│       └── test/.../architecture/ReservationArchitectureTest.java
 └── notification-service/       # listener Kafka, simulación de envío
     ├── Dockerfile
     └── src/
+        └── test/.../architecture/NotificationArchitectureTest.java
 ```
 
 ## Requisitos previos
@@ -271,6 +276,38 @@ Config en `.github/dependency-review-config.yml`:
 | `./mvnw verify` | Build completo: tests + calidad + seguridad. |
 
 La cobertura se mide con JaCoCo (sin umbral que falle el build).
+
+## Tests de arquitectura
+
+Tests basados en **ArchUnit** que validan reglas de arquitectura en tiempo de build:
+
+| Módulo | Test | Reglas verificadas |
+|--------|------|-------------------|
+| **common** | `CommonArchitectureTest` (5) | Independiente: sin Spring, JPA, Kafka; no depende de servicios concretos |
+| **reservation-service** | `ReservationArchitectureTest` (11) | Domain puro; API orquesta lock/pago; mensajería usa Kafka; lock usa Redis; config usa Spring; sin ciclos |
+| **notification-service** | `NotificationArchitectureTest` (6) | Sin JPA; solo common + Kafka + SLF4J; listeners en `mensajería`; services en `notificacion`; sin Web |
+
+**Comandos:**
+
+```bash
+# Solo tests de arquitectura (rápido, sin JaCoCo)
+./mvnw test -Dtest=*ArchitectureTest -Djacoco.skip=true
+
+# Tests de arquitectura de un módulo específico
+./mvnw test -pl reservation-service -Dtest=ReservationArchitectureTest -Djacoco.skip=true
+
+# Todos los tests (unit + integración + arquitectura)
+./mvnw test
+```
+
+**Reglas clave implementadas:**
+- Separación de capas: `domain` no depende de `api`, `mensajeria`, `lock`, `pago`, `config`
+- Orquestación en `api`: controllers y services de aplicación usan `domain`, `lock`, `pago`
+- Infraestructura aislada: `lock` (Redis), `mensajeria` (Kafka), `pago`, `config` usan Spring según corresponda
+- `common` independiente: sin Spring, JPA, Kafka, ni dependencias a servicios concretos
+- `notification-service` stateless: sin JPA, consume eventos vía Kafka, usa SLF4J
+- Detección de ciclos: `slices().should().beFreeOfCycles()` entre módulos principales
+- Tests excluidos: via `ImportOption.DoNotIncludeTests`
 
 ## Documentación
 
