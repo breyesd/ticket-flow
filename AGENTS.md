@@ -130,6 +130,27 @@ Consulta y carga la skill relevante antes de responder o actuar cuando aplique.
 - Ejecuta las métricas de calidad de código (`./mvnw checkstyle:check` dentro de `verify`; cobertura JaCoCo sin umbral).
 - Ejecuta la verificación de seguridad del código (`./mvnw dependency-check:check` y `./mvnw spotbugs:check` dentro de `verify`).
 
+## Verificación obligatoria antes de PR (Quality Gates)
+
+**Antes de crear o actualizar cualquier Pull Request, TODAS las siguientes métricas deben pasar localmente:**
+
+| Comando | Qué valida | Debe pasar |
+|---------|------------|------------|
+| `./mvnw test` | Tests unitarios + integración + arquitectura | ✅ Sí |
+| `./mvnw checkstyle:check` | Estilo de código (Checkstyle) | ✅ Sí |
+| `./mvnw spotbugs:check` | Análisis estático (SpotBugs + FindSecBugs) | ✅ Sí |
+| `./mvnw dependency-check:check` | Vulnerabilidades en dependencias (OWASP) | ✅ Sí |
+| `./mvnw verify` | Build completo: tests + calidad + seguridad | ✅ Sí |
+
+**En GitHub (branch protection rules configurados en `main`):**
+- **Require status checks to pass before merging** → habilitado
+- **Required checks:** `build-test`, `dependency-review`, `codeql` (workflows de CI)
+- **Require branches to be up to date before merging** → habilitado
+- **Require pull request reviews before merging** → habilitado (mínimo 1 aprobación)
+- **Dismiss stale reviews when new commits are pushed** → habilitado
+
+> **Nota:** Los workflows de CI (`.github/workflows/ci.yml`, `codeql.yml`, `dependency-review.yml`) se ejecutan automáticamente en cada PR y push a `main`. El merge solo se permite si todos los checks pasan.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
